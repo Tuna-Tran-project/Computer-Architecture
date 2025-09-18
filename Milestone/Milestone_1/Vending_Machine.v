@@ -1,15 +1,10 @@
 module Vending_Machine (
-    // Clock and reset
     input  wire       i_clk,
-    
-    // Coin inputs (active high for one clock cycle)
     input  wire       i_nickle,    // 5¢ coin input
     input  wire       i_dime,      // 10¢ coin input  
     input  wire       i_quarter,   // 25¢ coin input
-    
-    // Outputs (active high for one clock cycle when dispensing)
-    output reg        o_soda,      // Soda dispense signal
-    output reg  [2:0] o_change     // Change amount (in 5¢ units)
+    output reg        o_soda,      
+    output reg  [2:0] o_change     
 );
 
     // Coin values in cents
@@ -27,7 +22,7 @@ module Vending_Machine (
         STATE_DISPENSE = 3'b100;    // Dispensing state
 
     reg [2:0] current_state, next_state;
-    reg [4:0] stored_total;  // ADDED: Store total value when dispensing
+    reg [4:0] stored_total;  
     
     // Helper signals
     wire coin_inserted;
@@ -37,10 +32,8 @@ module Vending_Machine (
     // Detect any coin insertion
     assign coin_inserted = i_nickle | i_dime | i_quarter;
     
-    // Assign current_value from state
+    //current_value from state, total value
     assign current_value = current_state * 5;
-    
-    // Calculate total_value combinationally
     assign total_value = current_value + 
                         (i_nickle  ? NICKLE_VALUE  : 0) +
                         (i_dime    ? DIME_VALUE    : 0) +
@@ -49,60 +42,49 @@ module Vending_Machine (
     // FSM Next State Logic
     always @(*) begin
         next_state = current_state;  // Default: stay in current state
-        
         case (current_state)
             STATE_0_CENTS, STATE_5_CENTS, STATE_10_CENTS, STATE_15_CENTS: begin
                 if (coin_inserted) begin
                     if (total_value >= SODA_COST) begin
-                        // Enough money: go to dispense state
                         next_state = STATE_DISPENSE;
                     end else begin
-                        // Not enough money: advance to next accumulation state
                         case (total_value)
                             5:  next_state = STATE_5_CENTS;
                             10: next_state = STATE_10_CENTS;
                             15: next_state = STATE_15_CENTS;
-                            default: next_state = STATE_0_CENTS;  // Safety
+                            default: next_state = STATE_0_CENTS;
                         endcase
                     end
                 end
             end
-            
             STATE_DISPENSE: begin
-                // After dispensing, return to 0 cents
                 next_state = STATE_0_CENTS;
             end
-            
             default: begin
-                next_state = STATE_0_CENTS;  // Safety
+                next_state = STATE_0_CENTS; 
             end
         endcase
     end
-
-    // FIXED: Store total value when transitioning to dispense state
     always @(posedge i_clk) begin
         if (next_state == STATE_DISPENSE && current_state != STATE_DISPENSE) begin
-            // Store the total value when we're about to dispense
             stored_total <= total_value;
         end
     end
-
     // Output Logic
     always @(posedge i_clk) begin
-        // Generate outputs when in dispense state
         if (current_state == STATE_DISPENSE) begin
             o_soda   <= 1'b1;
-            o_change <= (stored_total - SODA_COST) / 5; // Use stored value!
+            o_change <= (stored_total - SODA_COST) / 5; //exp: 20/5 => o_change <= 3'b100
         end else begin
             // Default outputs
             o_soda   <= 1'b0;
             o_change <= 3'b000;
         end
     end
-
     // State Register
     always @(posedge i_clk) begin
         current_state <= next_state;
     end
 
 endmodule
+
