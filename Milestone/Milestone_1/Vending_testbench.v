@@ -7,7 +7,7 @@ module Vending_testbench;
     wire [2:0] o_change;
 
     // Instantiate the Device Under Test (DUT)
-    Vending_FSM uut (
+    Vending_Machine uut (
         .i_clk(i_clk),
         .i_nickle(i_nickle),
         .i_dime(i_dime),
