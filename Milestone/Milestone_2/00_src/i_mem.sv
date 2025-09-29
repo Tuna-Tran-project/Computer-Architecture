@@ -5,6 +5,7 @@ module i_mem(
 logic [31:0] mem [0:2047];
 initial begin
 	$readmemh("C:/Users/Lenovo/Downloads/imem.hex", mem);
+	$readmemh("C:/Users/Lenovo/Downloads/test_br_jal_jalr.hex", mem);
 end
-assign o_data = mem[i_addr[7:2]];
+assign o_data = mem[i_addr[12:2]];
 endmodule
