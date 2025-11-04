@@ -61,24 +61,44 @@ module output_buffer(
 	end
 
 	// Full 32-bit IO addresses inside region 0x1000_0000 .. 0x1001_0FFF
-	always @(posedge i_clk or negedge i_reset)
+	// combinational next-state for IO outputs
+	logic [31:0] next_b_io_ledr, next_b_io_ledg, next_b_io_hexl, next_b_io_hexh, next_b_io_lcd;
+
+	always_comb begin
+		// default: hold current values
+		next_b_io_ledr = b_io_ledr;
+		next_b_io_ledg = b_io_ledg;
+		next_b_io_hexl = b_io_hexl;
+		next_b_io_hexh = b_io_hexh;
+		next_b_io_lcd  = b_io_lcd;
+
+		if (f_io_wren == 1'b1) begin
+			case (i_io_addr[31:12])
+				32'h1000_0: if (write_mask != 32'h0000_0000) next_b_io_ledr = (b_io_ledr & ~write_mask) | (write_data & write_mask); // Red LEDs
+				32'h1000_1: if (write_mask != 32'h0000_0000) next_b_io_ledg = (b_io_ledg & ~write_mask) | (write_data & write_mask); // Green LEDs
+				32'h1000_2: if (write_mask != 32'h0000_0000) next_b_io_hexl = (b_io_hexl & ~write_mask) | (write_data & write_mask); // Seven-seg 3-0
+				32'h1000_3: if (write_mask != 32'h0000_0000) next_b_io_hexh = (b_io_hexh & ~write_mask) | (write_data & write_mask); // Seven-seg 7-4
+				32'h1000_4: if (write_mask != 32'h0000_0000) next_b_io_lcd  = (b_io_lcd  & ~write_mask) | (write_data & write_mask); // LCD control
+				default: ; // no change
+			endcase
+		end
+	end
+
+	// flip-flops: register the next-state on clock / async reset
+	always_ff @(posedge i_clk or negedge i_reset) begin
 		if (~i_reset) begin
-		b_io_ledr <= 32'b0;
-		b_io_ledg <= 32'b0;
-		b_io_hexl <= 32'b0;
-		b_io_hexh <= 32'b0;
-		b_io_lcd  <= 32'b0;
-		end else if (f_io_wren == 1'b1) begin
-		case (i_io_addr[31:12])
-		32'h1000_0: if (write_mask != 32'h0000_0000) begin
-			b_io_ledr <= (b_io_ledr & ~write_mask) | (write_data & write_mask); // Red LEDs
-			// $display("IO write SH/SB/SW: addr=%h funct3=%0d mask=%h data=%h result=%h", i_io_addr, i_funct3, write_mask, write_data, (b_io_ledr & ~write_mask) | (write_data & write_mask));
+			b_io_ledr <= 32'b0;
+			b_io_ledg <= 32'b0;
+			b_io_hexl <= 32'b0;
+			b_io_hexh <= 32'b0;
+			b_io_lcd  <= 32'b0;
+		end else begin
+			b_io_ledr <= next_b_io_ledr;
+			b_io_ledg <= next_b_io_ledg;
+			b_io_hexl <= next_b_io_hexl;
+			b_io_hexh <= next_b_io_hexh;
+			b_io_lcd  <= next_b_io_lcd;
 		end
-		32'h1000_1: if (write_mask != 32'h0000_0000) b_io_ledg <= (b_io_ledg & ~write_mask) | (write_data & write_mask); // Green LEDs
-		32'h1000_2: if (write_mask != 32'h0000_0000) b_io_hexl <= (b_io_hexl & ~write_mask) | (write_data & write_mask); // Seven-seg 3-0
-		32'h1000_3: if (write_mask != 32'h0000_0000) b_io_hexh <= (b_io_hexh & ~write_mask) | (write_data & write_mask); // Seven-seg 7-4
-		32'h1000_4: if (write_mask != 32'h0000_0000) b_io_lcd  <= (b_io_lcd  & ~write_mask) | (write_data & write_mask); // LCD control
-		endcase
-		end
+	end
 endmodule
 	
